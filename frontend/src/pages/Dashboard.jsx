@@ -92,6 +92,26 @@ const Dashboard = () => {
     }
   }, [currentCategory]);
 
+  // Fetch watchlist on component mount if user is logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(`${BACKEND_URL}/api/watchlist`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          // Map to array of { productId }
+          setWatchlist(data.map(item => ({ productId: item.productId._id })));
+        })
+        .catch((err) => {
+          console.error('Error fetching watchlist:', err);
+        });
+    }
+  }, []);
+
   const handleCategoryClick = (name) => {
     setCurrentCategory(name);
     setViewProduct(null);

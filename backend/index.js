@@ -5,6 +5,11 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+// Import models to register them with Mongoose
+const User = require('./models/User');
+const Product = require('./models/Product');
+const Order = require('./models/Order');
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const seedRoute = require('./routes/seed');

@@ -47,6 +47,16 @@ const userSchema = new mongoose.Schema({
     email: { type: Boolean, default: true },
     sms: { type: Boolean, default: false }
   },
+  role: {
+    type: String,
+    enum: ['Student', 'Teacher', 'Admin'],
+    default: 'Student'
+  },
+  profile: {
+    studentId: String,
+    employeeId: String,
+    branch: String
+  },
   isAdmin: {
     type: Boolean,
     default: false

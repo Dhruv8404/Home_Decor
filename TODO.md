@@ -1,15 +1,12 @@
-# Integration Plan for Header, Footer, and Navigation
+# Add Image Upload Button in Product Insert in Admin + Stock Management
 
 ## Tasks
-- [ ] Create Layout.jsx component to wrap Header and Footer
-- [ ] Update Header.jsx to use React Router Link and add navigation buttons
-- [ ] Update App.jsx to use Layout for protected routes
-- [ ] Update Dashboard.jsx to remove internal Footer and use Layout
-- [ ] Update profile.jsx to use Layout
-- [ ] Update CartPage.jsx to use Layout instead of internal Header/Footer
-- [ ] Test navigation and routing
-- [ ] Verify responsive design
-- [ ] Check logout functionality
-
-## Progress
-- Started implementation
+- [x] Create backend/uploads/products/ directory for product images
+- [x] Add product image upload route in backend/routes/admin.js
+- [x] Add product image upload handler in backend/controllers/adminController.js
+- [x] Modify frontend/src/pages/AdminDashboard.jsx to replace Image URL input with file upload
+- [x] Test the image upload functionality
+- [x] Implement stock update when orders are delivered
+- [x] Add stock restoration when order status changes from Delivered to other status
+- [x] Add comprehensive logging for stock updates
+- [x] Add database verification for stock changes
