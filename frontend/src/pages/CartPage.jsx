@@ -8,7 +8,8 @@ import {
   ArrowRight,
   ShoppingBag,
   AlertCircle,
-  Heart
+  Heart,
+  RotateCcw
 } from 'lucide-react';
 
 const CartPage = () => {
@@ -158,6 +159,78 @@ const CartPage = () => {
 
   const getStockStatus = (stock) => {
     return stock > 0 ? 'In Stock' : 'Out of Stock';
+  };
+
+  // Reorder entire cart
+  const handleReorderCart = async () => {
+    if (!token) {
+      alert('Please login to reorder items');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      alert('Your cart is empty');
+      return;
+    }
+
+    setUpdating(prev => ({ ...prev, 'reorder': true }));
+
+    try {
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const item of cartItems) {
+        try {
+          await axios.post('http://localhost:5000/api/cart/add', {
+            productId: item.productId._id,
+            quantity: item.quantity
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          successCount++;
+        } catch (err) {
+          console.error('Error adding item to cart:', err);
+          failedCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        alert(`${successCount} item(s) reordered successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}!`);
+      } else {
+        alert('Failed to reorder items');
+      }
+    } catch (err) {
+      console.error('Error reordering cart:', err);
+      alert('Failed to reorder cart');
+    } finally {
+      setUpdating(prev => ({ ...prev, 'reorder': false }));
+    }
+  };
+
+  // Reorder single item
+  const handleReorderItem = async (productId, quantity) => {
+    if (!token) {
+      alert('Please login to reorder this item');
+      return;
+    }
+
+    setUpdating(prev => ({ ...prev, [productId]: true }));
+
+    try {
+      await axios.post('http://localhost:5000/api/cart/add', {
+        productId: productId,
+        quantity: quantity
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert('Item reordered successfully!');
+    } catch (err) {
+      console.error('Error reordering item:', err);
+      alert('Failed to reorder item');
+    } finally {
+      setUpdating(prev => ({ ...prev, [productId]: false }));
+    }
   };
 
   if (loading) {
@@ -323,14 +396,25 @@ const CartPage = () => {
                           </div>
                         </div>
 
-                        {/* Added Date */}
-                        <p className="text-xs text-gray-400 mt-3">
-                          Added on {new Date(item.addedAt).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </p>
+                        {/* Added Date and Reorder Button */}
+                        <div className="flex items-center justify-between mt-3">
+                          <p className="text-xs text-gray-400">
+                            Added on {new Date(item.addedAt).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </p>
+                          <button
+                            onClick={() => handleReorderItem(product._id, item.quantity)}
+                            disabled={updating[product._id]}
+                            className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Reorder this item"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Reorder
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -372,6 +456,15 @@ const CartPage = () => {
                   Proceed to Checkout
                   <ArrowRight className="h-4 w-4" />
                 </a>
+
+                <button
+                  onClick={handleReorderCart}
+                  disabled={updating['reorder']}
+                  className="w-full border border-blue-300 text-blue-600 font-medium py-3 px-6 rounded-lg hover:bg-blue-50 transition mb-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  {updating['reorder'] ? 'Reordering...' : 'Reorder All Items'}
+                </button>
 
                 <a
                   href="/products"

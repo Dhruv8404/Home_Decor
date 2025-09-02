@@ -31,8 +31,8 @@ function App() {
 
   const fetchUserData = async (token) => {
     try {
-      // Try to get user profile data from a user endpoint
-      const response = await axios.get('http://localhost:5000/api/user/profile', {
+      // Try to get user profile data from profile endpoint
+      const response = await axios.get('http://localhost:5000/api/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log('Profile API response:', response.data); // Debug log
