@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Package, Calendar, CreditCard, ShoppingBag, Truck, CheckCircle, XCircle, Clock, Eye, RotateCcw, AlertCircle } from "lucide-react";
+import OrderStatusProgress from "../components/OrderStatusProgress";
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -257,6 +258,11 @@ const OrdersPage = () => {
                   </div>
                 </div>
 
+                {/* Order Status Progress */}
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <OrderStatusProgress status={order.orderStatus} createdAt={order.createdAt} />
+                </div>
+
                 {/* Order Details */}
                 <div className="px-6 py-4">
                   <div className="flex items-center space-x-6 mb-4 text-sm text-gray-600">
@@ -341,7 +347,7 @@ const OrdersPage = () => {
                         <span>Reorder</span>
                       </button>
                     )}
-                    {order.orderStatus === "Processing" && (
+                    {(order.orderStatus === "Placed" || order.orderStatus === "Processing") && (
                       <button
                         onClick={() => cancelOrder(order._id)}
                         className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors flex items-center space-x-2"
