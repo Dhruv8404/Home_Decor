@@ -46,27 +46,29 @@ const OrdersPage = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Cancel order
-  const cancelOrder = async (orderId) => {
+  // Request order cancellation
+  const requestCancellation = async (orderId, reason = '') => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${BACKEND_URL}/api/orders/${orderId}/cancel`, {}, {
+      const response = await axios.put(`${BACKEND_URL}/api/orders/${orderId}/cancel`, {
+        reason: reason
+      }, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      // Update order status in local state
+      // Update order in local state
       setOrders(orders.map(order =>
         order._id === orderId
-          ? { ...order, orderStatus: 'Cancelled' }
+          ? { ...response.data.order }
           : order
       ));
 
-      showToast('Order cancelled successfully', 'success');
+      showToast('Cancellation request submitted successfully', 'success');
     } catch (err) {
-      console.error('Error cancelling order:', err);
-      showToast(err.response?.data?.error || 'Failed to cancel order', 'error');
+      console.error('Error submitting cancellation request:', err);
+      showToast(err.response?.data?.message || 'Failed to submit cancellation request', 'error');
     }
   };
 
@@ -347,14 +349,20 @@ const OrdersPage = () => {
                         <span>Reorder</span>
                       </button>
                     )}
-                    {(order.orderStatus === "Placed" || order.orderStatus === "Processing") && (
+                    {(order.orderStatus === "Placed" || order.orderStatus === "Processing") && !order.cancellationRequested && (
                       <button
-                        onClick={() => cancelOrder(order._id)}
+                        onClick={() => requestCancellation(order._id)}
                         className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors flex items-center space-x-2"
                       >
                         <XCircle className="w-4 h-4" />
-                        <span>Cancel Order</span>
+                        <span>Request Cancellation</span>
                       </button>
+                    )}
+                    {order.cancellationRequested && (
+                      <div className="px-4 py-2 text-sm font-medium text-yellow-600 bg-yellow-50 rounded-lg flex items-center space-x-2">
+                        <Clock className="w-4 h-4" />
+                        <span>Cancellation {order.cancellationStatus}</span>
+                      </div>
                     )}
                   </div>
 
