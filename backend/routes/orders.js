@@ -78,15 +78,40 @@ router.put('/:id/confirm', auth, async (req, res) => {
 router.put('/:id/cancel', auth, async (req, res) => {
   try {
     const orderId = req.params.id;
-    const order = await Order.findByIdAndUpdate(orderId, { orderStatus: 'Cancelled' }, { new: true });
-    
+    const { reason } = req.body;
+
+    // First check if order exists and can be cancelled
+    const order = await Order.findById(orderId);
+
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
-    
-    res.json({ message: 'Order cancelled', order });
+
+    if (order.cancellationRequested) {
+      return res.status(400).json({ message: 'Cancellation request already submitted' });
+    }
+
+    // Only allow cancellation if order is not already cancelled or delivered
+    if (order.orderStatus === 'Cancelled' || order.orderStatus === 'Delivered') {
+      return res.status(400).json({ message: `Cannot cancel an order that is ${order.orderStatus}` });
+    }
+
+    // Use findByIdAndUpdate to avoid full document validation
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        cancellationRequested: true,
+        cancellationReason: reason || '',
+        cancellationStatus: 'Pending',
+        cancellationRequestedAt: new Date()
+      },
+      { new: true, runValidators: false } // Skip validation to avoid address validation issues
+    );
+
+    res.json({ message: 'Cancellation request submitted', order: updatedOrder });
   } catch (error) {
-    console.error('Error cancelling order:', error);
+    console.error('Error submitting cancellation request:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 module.exports = router;

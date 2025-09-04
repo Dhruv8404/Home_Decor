@@ -239,6 +239,85 @@ const uploadProductImage = async (req, res) => {
   }
 };
 
+// Handle cancellation request approval/rejection
+const updateCancellationStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const action = req.path.includes('approve') ? 'Approved' : 'Rejected';
+    const adminId = req.user.id;
+
+    console.log(`[DEBUG] updateCancellationStatus called with orderId: ${orderId}, action: ${action}`);
+
+    // First check if order exists and has pending cancellation request
+    const order = await Order.findById(orderId).populate('items.productId');
+
+    if (!order) {
+      console.log(`[DEBUG] Order not found: ${orderId}`);
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (!order.cancellationRequested || order.cancellationStatus !== 'Pending') {
+      return res.status(400).json({ message: 'No pending cancellation request for this order' });
+    }
+
+    const updateData = {
+      cancellationStatus: action,
+      cancellationApprovedBy: adminId,
+      cancellationApprovedAt: new Date()
+    };
+
+    // If approved, update order status to Cancelled and handle stock restoration
+    if (action === 'Approved') {
+      const previousStatus = order.orderStatus;
+
+      // If order was already delivered, restore stock
+      if (previousStatus === 'Delivered') {
+        console.log(`Restoring stock for cancelled order ${orderId}`);
+
+        for (const item of order.items) {
+          const product = item.productId;
+          if (product) {
+            const oldStock = product.stock;
+            product.stock += item.quantity;
+
+            try {
+              await product.save();
+              console.log(`Restored stock for ${product.name}: ${oldStock} -> ${product.stock}`);
+            } catch (restoreError) {
+              console.error(`[ERROR] Failed to restore stock for ${product.name}:`, restoreError);
+              return res.status(500).json({
+                message: `Failed to restore stock for ${product.name}`,
+                error: restoreError.message
+              });
+            }
+          }
+        }
+      }
+
+      // Update order status to Cancelled and payment status
+      updateData.orderStatus = 'Cancelled';
+      if (order.paymentStatus === 'Received') {
+        updateData.paymentStatus = 'Refunded';
+      }
+    }
+
+    // Use findByIdAndUpdate to avoid full document validation
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      updateData,
+      { new: true, runValidators: false }
+    ).populate('items.productId');
+
+    res.json({
+      message: `Cancellation request ${action.toLowerCase()}`,
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Update cancellation status error:', error);
+    res.status(500).json({ message: 'Failed to update cancellation status' });
+  }
+};
+
 module.exports = {
   getUsers,
   getProducts,
@@ -247,5 +326,6 @@ module.exports = {
   deleteProduct,
   getOrders,
   updateOrderStatus,
+  updateCancellationStatus,
   uploadProductImage
 };

@@ -86,6 +86,76 @@ const AdminDashboard = () => {
     };
   }, []);
 
+  const renderCancellations = () => {
+    const cancellationRequests = orders.filter(order =>
+      order.cancellationStatus === 'Pending' || order.cancellationStatus === 'Requested'
+    );
+
+    return (
+      <div className="p-6">
+        <h2 className="text-2xl font-bold mb-6">Cancellation Requests</h2>
+        {loading ? (
+          <p>Loading cancellation requests...</p>
+        ) : cancellationRequests.length === 0 ? (
+          <p className="text-gray-500">No pending cancellation requests.</p>
+        ) : (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cancellation Reason</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {cancellationRequests.map(order => (
+                  <tr key={order._id}>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">{order._id.slice(-8)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{order.userId?.name || 'Unknown'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">₹{order.totalAmount}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
+                        order.orderStatus === 'Processing' ? 'bg-blue-100 text-blue-800' :
+                        order.orderStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {order.orderStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{order.cancellationReason || 'Not specified'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleCancellationAction(order._id, 'approve')}
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleCancellationAction(order._id, 'reject')}
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Polling effect for live data updates
   useEffect(() => {
     const fetchActiveTabData = () => {
@@ -99,6 +169,8 @@ const AdminDashboard = () => {
       } else if (activeTab === 'products') {
         fetchData('products', setProducts);
       } else if (activeTab === 'orders') {
+        fetchData('orders', setOrders);
+      } else if (activeTab === 'cancellations') {
         fetchData('orders', setOrders);
       }
     };
@@ -121,11 +193,11 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await axios.get('http://localhost:5000/api/admin', {
+      const { data } = await axios.get('http://localhost:5000/api/admin', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      if (!response.data.user.isAdmin) {
+
+      if (!data.user.isAdmin) {
         setError('Access denied. Admin privileges required.');
         setTimeout(() => navigate('/dashboard'), 2000);
       }
@@ -388,7 +460,7 @@ const AdminDashboard = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/status`, {
+      await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/status`, {
         status: newStatus
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -410,6 +482,33 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error('Error updating order status:', err);
       setError('Failed to update order status');
+    }
+  };
+
+  const handleCancellationAction = async (orderId, action) => {
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = action === 'approve' ? 'approve' : 'reject';
+      const response = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/cancellation/${endpoint}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update the local state
+      setOrders(orders.map(order =>
+        order._id === orderId
+          ? { ...order, cancellationStatus: action === 'approve' ? 'Approved' : 'Rejected', orderStatus: action === 'approve' ? 'Cancelled' : order.orderStatus }
+          : order
+      ));
+
+      // Refresh products data if stock was restored
+      if (action === 'approve' && response.data.order.orderStatus === 'Delivered') {
+        await fetchData('products', setProducts);
+      }
+
+      setError('');
+    } catch (err) {
+      console.error(`Error ${action}ing cancellation:`, err);
+      setError(`Failed to ${action} cancellation request`);
     }
   };
 
@@ -543,6 +642,16 @@ const AdminDashboard = () => {
                 >
                   Orders
                 </button>
+                <button
+                  onClick={() => setActiveTab('cancellations')}
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    activeTab === 'cancellations'
+                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Cancellations
+                </button>
               </div>
             </div>
             <div className="flex items-center">
@@ -581,6 +690,7 @@ const AdminDashboard = () => {
       {activeTab === 'users' && renderUsers()}
       {activeTab === 'products' && renderProducts()}
       {activeTab === 'orders' && renderOrders()}
+      {activeTab === 'cancellations' && renderCancellations()}
 
       {/* Product Modal */}
       {showProductModal && (

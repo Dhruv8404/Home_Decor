@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, getProducts, createProduct, updateProduct, deleteProduct, getOrders, updateOrderStatus, uploadProductImage } = require('../controllers/adminController');
+const { getUsers, getProducts, createProduct, updateProduct, deleteProduct, getOrders, updateOrderStatus, updateCancellationStatus, uploadProductImage } = require('../controllers/adminController');
 const { auth, adminAuth } = require('../middleware/auth');
 const path = require('path');
 const multer = require('multer');
@@ -55,6 +55,10 @@ router.get('/orders', getOrders);
 
 // Update order status (cancel, deliver, etc.)
 router.put('/orders/:orderId/status', updateOrderStatus);
+
+// Handle cancellation requests
+router.put('/orders/:orderId/cancellation/approve', updateCancellationStatus);
+router.put('/orders/:orderId/cancellation/reject', updateCancellationStatus);
 
 module.exports = router;
 
