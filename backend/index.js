@@ -1,8 +1,12 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const passport = require('passport');
+const session = require('express-session');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
 // Import models to register them with Mongoose
@@ -22,8 +26,61 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5174',
+  credentials: true
+}));
 app.use(express.json());
+
+// Session middleware for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'secretkey',
+  resave: false,
+  saveUninitialized: false
+}));
+
+// Initialize Passport and session
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport serialize/deserialize user
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
+
+// Configure Google OAuth Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback'
+},
+async (accessToken, refreshToken, profile, done) => {
+  try {
+    // Check if user exists
+    let user = await User.findOne({ googleId: profile.id });
+    if (!user) {
+      // Create new user
+      user = new User({
+        name: profile.displayName,
+        email: profile.emails[0].value,
+        googleId: profile.id,
+        password: 'google_oauth' // placeholder, not used
+      });
+      await user.save();
+    }
+    return done(null, user);
+  } catch (err) {
+    return done(err, null);
+  }
+}));
 
 // Middleware to log incoming requests
 app.use((req, res, next) => {

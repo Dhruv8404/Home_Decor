@@ -1,18 +1,13 @@
-# Order Cancellation Request Feature Implementation
+# TODO: Add Gmail Registration
 
-## Backend Changes
-- [x] Update Order model to add cancellation request fields
-- [x] Modify orders route: change cancel endpoint to create cancellation request
-- [x] Add admin routes for accepting/rejecting cancellation requests
-- [x] Update admin controller to handle cancellation request approval/rejection
+## Completed Steps
+- [x] Update backend/index.js to configure Passport with Google OAuth 2.0 strategy
+- [x] Update User model to include googleId field and make password optional for Google users
+- [x] Add Google OAuth routes (/google and /google/callback) to auth.js
+- [x] Set up session middleware for Passport
 
-## Frontend Changes
-- [x] Update OrdersPage: change cancel button to send cancellation request
-- [x] Update OrdersPage: show cancellation request status
-- [ ] Update AdminDashboard: add UI for viewing cancellation requests
-- [ ] Update AdminDashboard: add approve/reject buttons for cancellation requests
-
-## Testing
-- [ ] Test user cancellation request flow
-- [ ] Test admin approval/rejection flow
-- [ ] Test edge cases (multiple requests, status updates)
+## Remaining Steps
+- [x] Test Google OAuth registration flow locally (backend routes responding correctly, redirecting to Google OAuth)
+- [ ] Update frontend to add Google login button and handle token from redirect
+- [ ] Ensure proper error handling and user feedback on frontend
+- [ ] Verify user creation and JWT token issuance for Google users (requires completing OAuth flow)

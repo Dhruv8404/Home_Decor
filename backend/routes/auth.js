@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const passport = require('passport');
 const User = require('../models/User');
 const router = express.Router();
 
@@ -66,5 +67,24 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Google OAuth routes
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+router.get('/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  async (req, res) => {
+    try {
+      // Generate JWT token for the authenticated user
+      const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: '2h' });
+
+      // Redirect to frontend with token
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?token=${token}`);
+    } catch (err) {
+      console.error('Google callback error:', err);
+      res.redirect('/login?error=auth_failed');
+    }
+  }
+);
 
 module.exports = router;
