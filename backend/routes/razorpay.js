@@ -28,20 +28,46 @@ router.post('/create-order', async (req, res) => {
   }
 });
 
-// Optional: add verification route if needed
-router.post('/verify', (req, res) => {
+// Verify payment and update order status
+router.post('/verify', async (req, res) => {
   const crypto = require('crypto');
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-  const generated_signature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_SECRET)
-    .update(razorpay_order_id + '|' + razorpay_payment_id)
-    .digest('hex');
+  try {
+    const generated_signature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_SECRET)
+      .update(razorpay_order_id + '|' + razorpay_payment_id)
+      .digest('hex');
 
-  if (generated_signature === razorpay_signature) {
-    res.json({ success: true });
-  } else {
-    res.json({ success: false });
+    if (generated_signature === razorpay_signature) {
+      // Payment verified successfully
+      // Update order status and payment record
+      const Order = require('../models/Order');
+      const Payment = require('../models/Payment');
+
+      // Find order by razorpay order id (assuming receipt is rcpt_orderId)
+      const order = await Order.findOne({ _id: razorpay_order_id.split('_')[1] });
+
+      if (order) {
+        order.orderStatus = 'Delivered';
+        order.paymentStatus = 'Received';
+        await order.save();
+
+        // Update payment record
+        const payment = await Payment.findOne({ orderId: order._id });
+        if (payment) {
+          payment.status = 'completed';
+          await payment.save();
+        }
+      }
+
+      res.json({ success: true, message: 'Payment verified successfully' });
+    } else {
+      res.json({ success: false, message: 'Payment verification failed' });
+    }
+  } catch (err) {
+    console.error('Payment verification error:', err);
+    res.status(500).json({ success: false, message: 'Server error during verification' });
   }
 });
 

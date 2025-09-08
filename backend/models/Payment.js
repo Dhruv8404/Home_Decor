@@ -6,7 +6,7 @@ const PaymentSchema = new mongoose.Schema({
   paymentMethod: String,
   amount: Number,
   paidAt: { type: Date, default: Date.now },
-  status: { type: String, default: 'painding' } // Pending, Failed, Completed
+  status: { type: String, default: 'pending' } // Pending, Failed, Completed
 });
 
 module.exports = mongoose.model('Payment', PaymentSchema);

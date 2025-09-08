@@ -211,13 +211,81 @@ const CheckoutPage = () => {
         });
       }
 
-    } catch (err) {
-      // error handling
+    } catch (error) {
+      console.error('COD payment error:', error);
+      alert('Error processing COD payment. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  } else if (paymentMethod === 'upi') {
+    setProcessing(true);
+    try {
+      // Create order and get Razorpay order details
+      const response = await axios.post('http://localhost:5000/api/checkout', {
+        addressId: selectedAddressId,
+        paymentMethod: 'razorpay',
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const { razorpayOrderId, amount, currency, orderId } = response.data;
+
+      const options = {
+        key: 'rzp_test_hf54kCj6NjigUj', // Your Razorpay Key ID
+        amount: amount,
+        currency: currency,
+        name: 'Home Decor',
+        description: 'Order Payment',
+        order_id: razorpayOrderId,
+        handler: async function (response) {
+          // Verify payment on backend
+          try {
+            const verifyResponse = await axios.post('http://localhost:5000/api/razorpay/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (verifyResponse.data.success) {
+              setOrderSuccess(true);
+              setOrderId(orderId);
+
+              // Clear cart items after order success
+              for (const item of orderItems) {
+                await axios.delete(`http://localhost:5000/api/cart/${item._id}`, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+              }
+            } else {
+              alert('Payment verification failed. Please try again.');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            alert('Error verifying payment. Please try again.');
+          }
+        },
+        prefill: {
+          name: user?.name,
+          email: user?.email,
+          contact: user?.phone,
+        },
+        theme: {
+          color: '#3399cc'
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
+    } catch (error) {
+      console.error('UPI payment error:', error);
+      alert('Error processing payment. Please try again.');
     } finally {
       setProcessing(false);
     }
   }
-  // handle UPI or other methods...
 };
 
 
